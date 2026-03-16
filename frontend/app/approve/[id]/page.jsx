@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import axios from "axios";
+import { executionApi } from "@/lib/api";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 export default function ApprovalPage() {
@@ -19,10 +19,7 @@ export default function ApprovalPage() {
 
         const processAction = async () => {
             try {
-                // Use executionApi if imported or keep axios but update URL pattern
-                const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/executions/${id}/respond`, {
-                    action: action
-                });
+                const response = await executionApi.respond(id, action);
                 setStatus("success");
                 setMessage(response.data.message);
             } catch (err) {
