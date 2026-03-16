@@ -3,16 +3,18 @@
 import { useEffect, useState, useRef } from "react";
 import { executionApi } from "@/lib/api";
 import Navbar from "@/components/Navbar";
-import { Clock, CheckCircle2, XCircle, AlertCircle, Eye, Search, GitBranch, History, ChevronRight } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, AlertCircle, Eye, Search, GitBranch, History, ChevronRight, Activity, RotateCcw, Ban } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import gsap from "gsap";
+import { toast } from "sonner";
 
 export default function ExecutionDashboard() {
   const [executions, setExecutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedExecution, setSelectedExecution] = useState(null);
+  const [processingAction, setProcessingAction] = useState(false);
 
   const rowsRef = useRef([]);
 
@@ -40,12 +42,43 @@ export default function ExecutionDashboard() {
     }
   };
 
+  const handleCancel = async (id) => {
+    setProcessingAction(true);
+    try {
+      await executionApi.cancel(id);
+      toast.success("Execution canceled successfully");
+      fetchExecutions();
+      setSelectedExecution(null);
+    } catch (err) {
+      toast.error("Failed to cancel execution");
+      console.error(err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleRetry = async (id) => {
+    setProcessingAction(true);
+    try {
+      await executionApi.retry(id);
+      toast.success("Retry started");
+      fetchExecutions();
+      setSelectedExecution(null);
+    } catch (err) {
+      toast.error("Failed to retry execution");
+      console.error(err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const getStatusStyle = (status) => {
     switch (status) {
       case 'completed': return 'bg-green-50 text-green-600 border-green-100 shadow-[0_0_10px_rgba(34,197,94,0.1)]';
       case 'failed': return 'bg-red-50 text-red-600 border-red-100 shadow-[0_0_10px_rgba(239,44,44,0.1)]';
       case 'waiting': return 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse';
       case 'in_progress': return 'bg-blue-50 text-blue-600 border-blue-100';
+      case 'canceled': return 'bg-zinc-50 text-zinc-500 border-zinc-100';
       default: return 'bg-gray-50 text-gray-600 border-gray-100';
     }
   };
@@ -120,7 +153,8 @@ export default function ExecutionDashboard() {
                                         <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${getStatusStyle(exec.status)}`}>
                                             <div className={`w-1.5 h-1.5 rounded-full ${
                                                 exec.status === 'completed' ? 'bg-emerald-500' :
-                                                exec.status === 'failed' ? 'bg-rose-500' : 'bg-black'
+                                                exec.status === 'failed' ? 'bg-rose-500' : 
+                                                exec.status === 'canceled' ? 'bg-zinc-400' : 'bg-black'
                                             }`} />
                                             {exec.status}
                                         </span>
@@ -189,7 +223,8 @@ export default function ExecutionDashboard() {
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Lifecycle Status</p>
                               <p className={`text-xl font-black uppercase tracking-tighter ${
                                   selectedExecution.status === 'completed' ? 'text-green-600' : 
-                                  selectedExecution.status === 'failed' ? 'text-red-600' : 'text-blue-600'
+                                  selectedExecution.status === 'failed' ? 'text-red-600' : 
+                                  selectedExecution.status === 'canceled' ? 'text-zinc-500' : 'text-blue-600'
                               }`}>{selectedExecution.status}</p>
                           </div>
                           <div className="p-6 bg-gray-50/50 rounded-3xl border border-gray-100 relative overflow-hidden group">
@@ -210,7 +245,8 @@ export default function ExecutionDashboard() {
                                       <div key={i} className="flex gap-5 p-5 bg-white border border-gray-100 rounded-3xl hover:border-blue-200 hover:shadow-lg transition-all group">
                                           <div className={`w-1.5 origin-center rounded-full ${
                                               log.status === 'completed' || log.status === 'approved' || log.status === 'notified' ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)]' : 
-                                              log.status === 'waiting' ? 'bg-amber-500 animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,44,44,0.4)]'
+                                              log.status === 'waiting' || log.status === 'processing' ? 'bg-amber-500 animate-pulse' : 
+                                              log.status === 'canceled' ? 'bg-zinc-400' : 'bg-red-500 shadow-[0_0_12px_rgba(239,44,44,0.4)]'
                                           }`} />
                                           <div className="flex-1">
                                               <div className="flex justify-between items-center mb-1">
@@ -238,7 +274,29 @@ export default function ExecutionDashboard() {
                       </div>
                   </div>
 
-                  <div className="px-10 py-8 border-t border-gray-50 bg-gray-50/50 flex justify-end">
+                  <div className="px-10 py-8 border-t border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                      <div className="flex gap-3">
+                          {(selectedExecution.status === 'in_progress' || selectedExecution.status === 'waiting') && (
+                              <Button 
+                                onClick={() => handleCancel(selectedExecution.id)}
+                                disabled={processingAction}
+                                className="h-12 px-6 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold border border-rose-200 flex items-center gap-2 transition-all"
+                              >
+                                <Ban className="w-4 h-4" />
+                                Terminate
+                              </Button>
+                          )}
+                          {(selectedExecution.status === 'failed' || selectedExecution.status === 'canceled') && (
+                              <Button 
+                                onClick={() => handleRetry(selectedExecution.id)}
+                                disabled={processingAction}
+                                className="h-12 px-6 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold border border-emerald-200 flex items-center gap-2 transition-all"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                                Retry Step
+                              </Button>
+                          )}
+                      </div>
                       <Button onClick={() => setSelectedExecution(null)} className="h-12 px-10 rounded-2xl bg-gray-900 hover:bg-black text-white font-bold shadow-xl shadow-gray-200">Dismiss Analysis</Button>
                   </div>
               </div>
@@ -247,4 +305,3 @@ export default function ExecutionDashboard() {
     </div>
   );
 }
-

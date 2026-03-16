@@ -44,6 +44,8 @@ export const executionApi = {
   getAll: () => api.get("/executions"),
   getById: (id) => api.get(`/executions/${id}`),
   respond: (id, action) => api.post(`/executions/${id}/respond`, { action }),
+  cancel: (id) => api.post(`/executions/${id}/cancel`),
+  retry: (id) => api.post(`/executions/${id}/retry`),
 };
 
 export default api;
