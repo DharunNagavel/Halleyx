@@ -17,13 +17,22 @@ This is a powerful, full-stack workflow automation platform designed to streamli
 
 ---
 
+## 🧪 Testing & Credentials
+
+> [!IMPORTANT]
+> To create and manage workflows, you must be logged in as an **Admin**. For testing purposes, you can use the following pre-configured admin account:
+>
+> **Email:** `admin@gmail.com`  
+> **Password:** `admin@1234`
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
 - **Framework**: [Next.js 15 (App Router)](https://nextjs.org/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
 - **Animations**: [GSAP](https://gsap.com/)
-- **State Management**: React Hooks & Context API
 - **Form Handling**: React Hook Form + Zod
 - **Icons**: Lucide React
 
@@ -44,13 +53,13 @@ workflow-engine/
 │   ├── controller/     # Request handlers
 │   ├── routes/         # API Route definitions
 │   ├── middleware/     # Custom auth & protection filters
-│   ├── db.js           # Neon DB connection
+│   ├── db.js           # Neon DB connection (PostgreSQL)
 │   └── server.js       # Entry point
 ├── frontend/           # Next.js Application
 │   ├── app/            # Next.js App Router (Dashboard, Auth, Workflows)
 │   ├── components/     # Reusable UI components
 │   └── lib/            # Utility functions and API clients
-└── .git/               # Version control
+└── README.md           # Documentation
 ```
 
 ---
@@ -60,7 +69,7 @@ workflow-engine/
 ### Prerequisites
 - Node.js (v18+)
 - PostgreSQL (Neon DB recommended)
-- Redis (Optional, defaults to local)
+- Redis
 
 ### Installation
 
@@ -75,7 +84,7 @@ workflow-engine/
    cd backend
    npm install
    ```
-   Create a [.env](file:///d:/Halleyx/backend/.env) file in the `backend` directory:
+   Create a `.env` file in the `backend` directory:
    ```env
    PORT=5000
    DB_URL=your_postgresql_url
@@ -89,7 +98,7 @@ workflow-engine/
    cd ../frontend
    npm install
    ```
-   Create a [.env](file:///d:/Halleyx/backend/.env) file in the `frontend` directory:
+   Create a `.env` file in the `frontend` directory:
    ```env
    NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
    ```
@@ -124,8 +133,8 @@ Contributions are what make the open-source community such an amazing place to l
 
 ## 📄 License
 
-Distributed under the ISC License. See `LICENSE` for more information.
+Distributed under the ISC License.
 
 ---
 
-<p align="center">Built with 💚</p>
+<p align="center">Built with 💚 by <a href="https://github.com/DharunNagavel">Dharun Nagavel</a></p>
