@@ -43,6 +43,7 @@ export const ruleApi = {
 export const executionApi = {
   getAll: () => api.get("/executions"),
   getById: (id) => api.get(`/executions/${id}`),
+  respond: (id, action) => api.post(`/executions/${id}/respond`, { action }),
 };
 
 export default api;

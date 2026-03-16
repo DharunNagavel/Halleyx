@@ -16,10 +16,16 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-        <p className="text-gray-500 font-medium animate-pulse">Loading Workflow Engine...</p>
+    <div className="flex items-center justify-center min-h-screen bg-white">
+      <div className="flex flex-col items-center gap-6">
+        <div className="relative">
+          <div className="animate-spin h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full"></div>
+          <div className="absolute inset-0 animate-ping h-10 w-10 border border-emerald-500/30 rounded-full"></div>
+        </div>
+        <div className="flex flex-col items-center">
+            <p className="text-black font-black uppercase tracking-[0.3em] text-[10px]">Workflow <span className="text-emerald-500">Engine</span></p>
+            <p className="text-zinc-400 font-black uppercase tracking-[0.1em] text-[8px] mt-1">Booting Core Modules...</p>
+        </div>
       </div>
     </div>
   );
