@@ -1,8 +1,15 @@
 import pool from "../db.js";
 import { v4 as uuidv4 } from "uuid";
+import aj from "../arcjet.js";
 
 export const createStep = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const { workflow_id } = req.params;
   const { name, step_type, order, metadata, approver_email } = req.body;
   const id = uuidv4();
@@ -21,12 +28,24 @@ export const createStep = async (req, res) =>
 
 export const getSteps = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const { workflow_id } = req.params;
   const result = await pool.query(`SELECT * FROM steps WHERE workflow_id=$1 ORDER BY "order"`,[workflow_id],);
   res.json(result.rows);
 };
 
 export const updateStep = async (req, res) => {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   try {
     const { id } = req.params;
     const { name, step_type, order, metadata, approver_email } = req.body;
@@ -42,6 +61,12 @@ export const updateStep = async (req, res) => {
 
 export const deleteStep = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const { id } = req.params;
   await pool.query("DELETE FROM steps WHERE id=$1", [id]);
   res.json({ message: "Step deleted" });

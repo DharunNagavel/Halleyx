@@ -1,9 +1,17 @@
 import pool from "../db.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendApprovalEmail, sendNotificationEmail } from "../utils/mail.js";
+import { aj } from "../arcjet.js";
 
 export const executeWorkflow = async (req, res) => {
   try {
+    const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
     const { workflow_id } = req.params;
     const bodyData = req.body;
 
@@ -290,6 +298,14 @@ export const executeWorkflow = async (req, res) => {
 };
 
 export const respondToApproval = async (req, res) => {
+
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
   const { id } = req.params;
   const { action } = req.body; // 'approve' or 'reject'
 
@@ -402,6 +418,14 @@ export const respondToApproval = async (req, res) => {
 };
 
 export const getAllExecutions = async (req, res) => {
+
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
   try {
     const result = await pool.query(`
       SELECT e.*, w.name as workflow_name 
@@ -417,6 +441,14 @@ export const getAllExecutions = async (req, res) => {
 };
 
 export const getExecution = async (req, res) => {
+
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
   const result = await pool.query("SELECT * FROM executions WHERE id=$1", [
     req.params.id,
   ]);
@@ -424,6 +456,14 @@ export const getExecution = async (req, res) => {
 };
 
 export const cancelExecution = async (req, res) => {
+
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
   await pool.query("UPDATE executions SET status='canceled' WHERE id=$1", [
     req.params.id,
   ]);
@@ -431,6 +471,14 @@ export const cancelExecution = async (req, res) => {
 };
 
 export const retryExecution = async (req, res) => {
+
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
+
   await pool.query("UPDATE executions SET retries=retries+1 WHERE id=$1", [
     req.params.id,
   ]);

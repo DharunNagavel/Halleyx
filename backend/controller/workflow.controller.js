@@ -1,8 +1,15 @@
 import pool from "../db.js";
 import { v4 as uuidv4 } from "uuid";
+import aj from "../arcjet.js";
 
 export const createWorkflow = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   try {
     const { name, input_schema } = req.body;
     const id = uuidv4();
@@ -18,12 +25,24 @@ export const createWorkflow = async (req, res) =>
 
 export const getWorkflows = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const result = await pool.query("SELECT * FROM workflows ORDER BY created_at DESC",);
   res.json(result.rows);
 };
 
 export const getWorkflowById = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const { id } = req.params;
   const workflowResult = await pool.query("SELECT * FROM workflows WHERE id=$1", [id]);
   const workflow = workflowResult.rows[0];
@@ -43,6 +62,12 @@ export const getWorkflowById = async (req, res) =>
 
 export const updateWorkflow = async (req, res) => 
 {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   const { id } = req.params;
   const { name, input_schema } = req.body;
   const old = await pool.query("SELECT version FROM workflows WHERE id=$1", [id]);
@@ -53,6 +78,12 @@ export const updateWorkflow = async (req, res) =>
 };
 
 export const deleteWorkflow = async (req, res) => {
+  const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+      return res.json({
+        message: "Request blocked by Arcjet",
+      });
+    }
   try {
     const { id } = req.params;
     
