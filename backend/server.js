@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import { PORT } from "./config/env.js";
 import pool from "./db.js";
-import redis from "./redis.js";
 import authRouter from "./routes/auth.route.js";
 import workflowRoutes from "./routes/workflow.route.js";
 import stepRoutes from "./routes/step.route.js";
@@ -27,16 +26,7 @@ pool
   .catch((err) => {
     console.error("Error connecting to the database", err);
   });
-
-redis
-  .connect()
-  .then(() => {
-    console.log("Connected to Redis");
-  })
-  .catch((err) => {
-    console.error("Error connecting to Redis", err);
-  });
-
+  
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

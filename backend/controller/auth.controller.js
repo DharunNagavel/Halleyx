@@ -1,7 +1,6 @@
 import pool from "../db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import redis from "../redis.js";
 import aj from "../arcjet.js";
 import { JWT_SECRET } from "../config/env.js";
 
@@ -13,7 +12,7 @@ export const Signup = async (req, res) => {
         message: "Request blocked by Arcjet",
       });
     }
-    const { name, email, password } = req.body;
+    const { name, email, password, role = "client" } = req.body;
     const userExists = await pool.query("SELECT * FROM users WHERE email=$1", [
       email,
     ]);
@@ -24,15 +23,16 @@ export const Signup = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await pool.query(
-      "INSERT INTO users(name,email,password) VALUES($1,$2,$3) RETURNING *",
-      [name, email, hashedPassword],
+      "INSERT INTO users(name,email,password,role) VALUES($1,$2,$3,$4) RETURNING *",
+      [name, email, hashedPassword, role],
     );
-    const token = jwt.sign({ id: newUser.rows[0].id }, JWT_SECRET, {
+    const token = jwt.sign({ id: newUser.rows[0].id, role: newUser.rows[0].role }, JWT_SECRET, {
       expiresIn: "1h",
     });
     res.json({
       message: "User registered successfully",
       token,
+      user: { id: newUser.rows[0].id, name: newUser.rows[0].name, role: newUser.rows[0].role }
     });
   } catch (error) {
     res.json({
@@ -65,12 +65,20 @@ export const Sigin = async (req, res) => {
         message: "Invalid email or password",
       });
     }
-    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const userData = user.rows[0];
+    const token = jwt.sign(
+      { id: userData.id, role: userData.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
     res.json({
       message: "Login successful",
       token,
+      user: {
+        id: userData.id,
+        name: userData.name,
+        role: userData.role,
+      },
     });
   } catch (error) {
     res.json({
