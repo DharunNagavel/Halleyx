@@ -1,5 +1,5 @@
 import {Router} from "express";
-import {createWorkflow,getWorkflows,getWorkflowById,updateWorkflow,deleteWorkflow} from "../controller/workflow.controller.js";
+import {createWorkflow,getWorkflows,getWorkflowById,updateWorkflow,deleteWorkflow,getWorkflowVersions,rollbackWorkflow} from "../controller/workflow.controller.js";
 
 const router = Router();
 
@@ -8,5 +8,7 @@ router.get("/", getWorkflows);
 router.get("/:id", getWorkflowById);
 router.put("/:id", updateWorkflow);
 router.delete("/:id", deleteWorkflow);
+router.get("/:id/versions", getWorkflowVersions);
+router.post("/:id/rollback/:version", rollbackWorkflow);
 
 export default router;

@@ -99,12 +99,12 @@ const runWorkflow = async (res, executionId, workflow, currentStepId, data, logs
       let defaultStep = null;
 
       if (rules.length === 0) {
-        if (step.step_type === "notification") {
-          matched = true;
-          nextStep = null;
-        } else {
-          throw new Error(`No rules defined for step: ${step.name}`);
-        }
+        // If no rules are defined, treat as a terminal step
+        matched = true;
+        nextStep = null;
+        stepLog.status = "completed";
+        stepLog.notes = "No rules defined for this step. Workflow completed.";
+        console.log(`[${executionId}] Terminal step reached: ${step.name} (No rules defined)`);
       }
 
       for (const rule of rules) {

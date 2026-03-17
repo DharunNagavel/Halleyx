@@ -49,8 +49,8 @@ export const sendNotificationEmail = async (to, workflowName, status, data) => {
 };
 
 export const sendApprovalEmail = async (to, executionId, workflowName, data) => {
-  const approvalLink = `${'https://halleyx-cgf3.vercel.app/'}/approve/${executionId}?action=approve`;
-  const rejectLink = `${'https://halleyx-cgf3.vercel.app/'}/approve/${executionId}?action=reject`;
+  const approvalLink = `${'https://halleyx-cgf3.vercel.app/' || 'http://localhost:3000/'}/approve/${executionId}?action=approve`;
+  const rejectLink = `${'https://halleyx-cgf3.vercel.app/' || 'http://localhost:3000/'}/approve/${executionId}?action=reject`;
 
   const mailOptions = {
     from: `"Workflow engine" <${'dharunnagavel1226@gmail.com'}>`,

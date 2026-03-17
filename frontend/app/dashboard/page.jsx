@@ -114,6 +114,18 @@ export default function Dashboard() {
                             <p className="font-bold text-white uppercase tracking-tighter italic">Operational</p>
                         </div>
                     </div>
+                    
+                    {isAdmin && (
+                        <Link href="/dashboard/admin" className="p-5 bg-black border border-emerald-500/50 rounded-3xl shadow-2xl flex items-center gap-4 group hover:scale-105 transition-all duration-500 cursor-pointer">
+                            <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/40">
+                                <ShieldCheck className="w-5 h-5 text-black" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">Administrator</p>
+                                <p className="font-bold text-white uppercase tracking-tighter italic">Open Admin Panel</p>
+                            </div>
+                        </Link>
+                    )}
                 </div>
             </div>
         </main>
@@ -183,10 +195,16 @@ export default function Dashboard() {
 
                 <div className="flex-1 relative z-10">
                     <h3 className="text-2xl font-black text-black mb-2 tracking-tighter group-hover:text-emerald-600 transition-colors">{workflow.name}</h3>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2 mb-8">
-                        <Clock className="w-3 h-3" />
-                        {new Date(workflow.updated_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-4 mb-8">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <Clock className="w-3 h-3" />
+                            {new Date(workflow.updated_at).toLocaleDateString()}
+                        </p>
+                        <div className="h-4 w-px bg-zinc-100" />
+                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-emerald-100">
+                            V{workflow.version || 1}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="mt-auto pt-6 border-t border-zinc-50 flex items-center justify-between relative z-10">

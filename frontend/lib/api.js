@@ -24,6 +24,12 @@ export const workflowApi = {
   update: (id, data) => api.put(`/workflows/${id}`, data),
   delete: (id) => api.delete(`/workflows/${id}`),
   execute: (id, data) => api.post(`/workflows/${id}/execute`, data),
+  getVersions: (id) => api.get(`/workflows/${id}/versions`),
+  rollback: (id, version) => api.post(`/workflows/${id}/rollback/${version}`),
+};
+
+export const adminApi = {
+  getStats: () => api.get("/admin/stats"),
 };
 
 export const stepApi = {

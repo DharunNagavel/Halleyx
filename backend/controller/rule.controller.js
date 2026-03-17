@@ -1,10 +1,10 @@
 import pool from "../db.js";
 import { v4 as uuidv4 } from "uuid";
 import aj from "../arcjet.js";
+import { createRevision, logAudit } from "../utils/versionUtility.js";
 
 export const createRule = async (req, res) => 
 {
-
   const decision = await aj.protect(req);
     if (decision.isDenied()) {
       return res.json({
@@ -14,10 +14,23 @@ export const createRule = async (req, res) =>
 
   const { step_id } = req.params;
   const { condition, next_step_id, priority } = req.body;
-  const id = uuidv4();
-  const result = await pool.query(`INSERT INTO rules (id,step_id,condition,next_step_id,priority,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
-  RETURNING *`,[id, step_id, condition, next_step_id, priority],);
-  res.json(result.rows[0]);
+  
+  try {
+    // Get workflow_id
+    const step = await pool.query("SELECT workflow_id FROM steps WHERE id=$1", [step_id]);
+    if (step.rows.length > 0) {
+        await createRevision(step.rows[0].workflow_id);
+    }
+
+    const id = uuidv4();
+    const result = await pool.query(`INSERT INTO rules (id,step_id,condition,next_step_id,priority,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+    RETURNING *`,[id, step_id, condition, next_step_id, priority],);
+
+    await logAudit("create_rule", "rule", id, { condition });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create rule", error: err.message });
+  }
 };
 
 export const getRules = async (req, res) => 
@@ -41,11 +54,24 @@ export const updateRule = async (req, res) =>
         message: "Request blocked by Arcjet",
       });
     }
-  const { id } = req.params;
-  const { condition, next_step_id, priority } = req.body;
-  const result = await pool.query(`UPDATE rules SET condition=$1,next_step_id=$2,priority=$3 WHERE id=$4 RETURNING *`,
-  [condition, next_step_id, priority, id],);
-  res.json(result.rows[0]);
+  try {
+    const { id } = req.params;
+    const { condition, next_step_id, priority } = req.body;
+
+    // Get workflow_id
+    const rule = await pool.query("SELECT s.workflow_id FROM rules r JOIN steps s ON r.step_id=s.id WHERE r.id=$1", [id]);
+    if (rule.rows.length > 0) {
+        await createRevision(rule.rows[0].workflow_id);
+    }
+
+    const result = await pool.query(`UPDATE rules SET condition=$1,next_step_id=$2,priority=$3 WHERE id=$4 RETURNING *`,
+    [condition, next_step_id, priority, id],);
+
+    await logAudit("update_rule", "rule", id, { condition });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update rule", error: err.message });
+  }
 };
 
 export const deleteRule = async (req, res) => 
@@ -56,7 +82,19 @@ export const deleteRule = async (req, res) =>
         message: "Request blocked by Arcjet",
       });
     }
-  const { id } = req.params;
-  await pool.query("DELETE FROM rules WHERE id=$1", [id]);
-  res.json({ message: "Rule deleted" });
+  try {
+    const { id } = req.params;
+
+    // Get workflow_id
+    const rule = await pool.query("SELECT s.workflow_id FROM rules r JOIN steps s ON r.step_id=s.id WHERE r.id=$1", [id]);
+    if (rule.rows.length > 0) {
+        await createRevision(rule.rows[0].workflow_id);
+    }
+
+    await pool.query("DELETE FROM rules WHERE id=$1", [id]);
+    await logAudit("delete_rule", "rule", id);
+    res.json({ message: "Rule deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete rule", error: err.message });
+  }
 };

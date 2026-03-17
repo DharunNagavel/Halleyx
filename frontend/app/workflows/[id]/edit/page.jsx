@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useRouter, useParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
-import { ArrowLeft, Save, Plus, Trash2, GitBranch, ListTree, Settings, Play, Loader2, CheckCircle2, ChevronRight, Layout, Edit3, Activity } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, GitBranch, ListTree, Settings, Play, Loader2, CheckCircle2, ChevronRight, Layout, Edit3, Activity, History, RotateCcw, X, Clock } from "lucide-react";
 import Link from "next/link";
 import gsap from "gsap";
 
@@ -22,6 +22,10 @@ export default function EditWorkflowWizard() {
   const [error, setError] = useState("");
   const [steps, setSteps] = useState([]);
   const [rules, setRules] = useState([]);
+  const [workflow, setWorkflow] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [rollbackLoading, setRollbackLoading] = useState(false);
   
   const mainRef = useRef(null);
 
@@ -100,6 +104,7 @@ export default function EditWorkflowWizard() {
         });
 
         setSteps(fetchedSteps);
+        setWorkflow(workflow);
         
         const rulesWithNames = fetchedRules.map(r => ({
             ...r,
@@ -126,6 +131,15 @@ export default function EditWorkflowWizard() {
     }
   }, [currentStep, loading]);
 
+  const refreshWorkflow = async () => {
+    try {
+      const response = await workflowApi.getById(id);
+      setWorkflow(response.data.workflow);
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
   const onWorkflowUpdate = async (data) => {
     setSaving(true);
     setError("");
@@ -139,6 +153,7 @@ export default function EditWorkflowWizard() {
         name: data.name,
         input_schema: JSON.stringify(input_schema)
       });
+      await refreshWorkflow();
       setCurrentStep(2);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update workflow");
@@ -161,6 +176,7 @@ export default function EditWorkflowWizard() {
           step_type: "task",
           order: newSteps.length + 1
       });
+      await refreshWorkflow();
     } catch (err) {
       setError("Failed to add step");
     } finally {
@@ -173,6 +189,7 @@ export default function EditWorkflowWizard() {
           await stepApi.delete(stepId);
           setSteps(steps.filter(s => s.id !== stepId));
           setRules(rules.filter(r => r.step_id !== stepId));
+          await refreshWorkflow();
       } catch (err) {
           setError("Failed to delete step");
       }
@@ -194,6 +211,7 @@ export default function EditWorkflowWizard() {
           next_step_id: "",
           priority: rules.length + 2
       });
+      await refreshWorkflow();
     } catch (err) {
       setError("Failed to add rule");
     } finally {
@@ -205,9 +223,31 @@ export default function EditWorkflowWizard() {
       try {
           await ruleApi.delete(ruleId);
           setRules(rules.filter(r => r.id !== ruleId));
+          await refreshWorkflow();
       } catch (err) {
           setError("Failed to delete rule");
       }
+  };
+  const onFetchVersions = async () => {
+    try {
+      const res = await workflowApi.getVersions(id);
+      setVersions(res.data);
+      setShowVersions(true);
+    } catch (err) {
+      setError("Failed to fetch versions");
+    }
+  };
+
+  const onRollback = async (version) => {
+    if (!confirm(`Are you sure you want to activate version ${version}? This will set the workflow logic back to that state.`)) return;
+    setRollbackLoading(true);
+    try {
+      await workflowApi.rollback(id, version);
+      window.location.reload(); 
+    } catch (err) {
+      setError("Activation failed");
+      setRollbackLoading(false);
+    }
   };
 
   if (loading) {
@@ -241,24 +281,35 @@ export default function EditWorkflowWizard() {
                 <p className="text-zinc-500 font-medium text-sm mt-2">Modify your existing automation architecture</p>
             </div>
 
-            {/* Stepper */}
-            <div className="bg-black p-2 rounded-2xl border border-zinc-800 shadow-2xl flex items-center gap-1">
-                {[
-                    { n: 1, label: "Blueprint" },
-                    { n: 2, label: "Execution" },
-                    { n: 3, label: "Logic" }
-                ].map((s, i) => (
-                    <div key={s.n} className="flex items-center cursor-pointer" onClick={() => setCurrentStep(s.n)}>
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
-                            currentStep === s.n ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 
-                            'text-zinc-600 hover:text-emerald-500 hover:bg-zinc-900'
-                        }`}>
-                            <span className="text-[10px] font-black">{s.n}</span>
-                            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">{s.label}</span>
+            <div className="flex gap-4">
+                <Button 
+                    variant="secondary" 
+                    onClick={onFetchVersions}
+                    className="h-12 px-6 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 border border-zinc-200 flex items-center gap-2 group transition-all"
+                >
+                    <History className="w-4 h-4 group-hover:rotate-[-45deg] transition-transform" />
+                    <span className="font-black uppercase tracking-widest text-[10px]">Version History</span>
+                </Button>
+
+                {/* Stepper */}
+                <div className="bg-black p-2 rounded-2xl border border-zinc-800 shadow-2xl flex items-center gap-1">
+                    {[
+                        { n: 1, label: "Blueprint" },
+                        { n: 2, label: "Execution" },
+                        { n: 3, label: "Logic" }
+                    ].map((s, i) => (
+                        <div key={s.n} className="flex items-center cursor-pointer" onClick={() => setCurrentStep(s.n)}>
+                            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                                currentStep === s.n ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 
+                                'text-zinc-600 hover:text-emerald-500 hover:bg-zinc-900'
+                            }`}>
+                                <span className="text-[10px] font-black">{s.n}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">{s.label}</span>
+                            </div>
+                            {i < 2 && <ChevronRight className="w-4 h-4 text-zinc-800 mx-1" />}
                         </div>
-                        {i < 2 && <ChevronRight className="w-4 h-4 text-zinc-800 mx-1" />}
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
         </div>
 
@@ -647,6 +698,99 @@ export default function EditWorkflowWizard() {
             )}
         </div>
       </main>
+
+      {/* VERSION HISTORY MODAL */}
+      {showVersions && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+                <div className="px-10 py-8 border-b border-zinc-100 flex justify-between items-center bg-black">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-emerald-500 rounded-2xl">
+                             <History className="w-6 h-6 text-black" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-white tracking-tight italic">Temporal Archives</h2>
+                            <p className="text-xs text-emerald-500 font-black uppercase tracking-widest">Workflow Version History</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setShowVersions(false)} className="p-3 hover:bg-zinc-800 rounded-2xl transition-all">
+                        <X className="w-6 h-6 text-zinc-400" />
+                    </button>
+                </div>
+                
+                <div className="p-10 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
+                    {/* CURRENT ACTIVE VERSION (FOR CONTEXT) */}
+                    <div className="p-6 bg-emerald-50/50 border-2 border-emerald-500/20 rounded-[2rem] relative overflow-hidden">
+                         <div className="absolute top-0 right-0 px-4 py-1.5 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-[0.2em] rounded-bl-2xl shadow-lg shadow-emerald-500/20">
+                            Current Active
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="bg-black text-emerald-500 font-black w-14 h-14 rounded-2xl flex flex-col items-center justify-center border border-zinc-800 shadow-xl">
+                                <span className="text-[10px] opacity-50 leading-none mb-0.5">VER</span>
+                                <span className="text-lg leading-none">V{workflow?.version}</span>
+                            </div>
+                            <div>
+                                <p className="font-black text-black text-xl tracking-tight leading-none">{workflow?.name}</p>
+                                <p className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.15em] mt-2 flex items-center gap-2">
+                                    <Activity className="w-3 h-3 text-emerald-500" />
+                                    Live Logic System
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 px-4">
+                        <div className="h-px bg-zinc-100 flex-1" />
+                        <span className="text-[10px] text-zinc-300 font-black uppercase tracking-widest whitespace-nowrap">Temporal Snapshots</span>
+                        <div className="h-px bg-zinc-100 flex-1" />
+                    </div>
+
+                    {versions.length === 0 ? (
+                        <div className="text-center py-20 text-zinc-300 italic flex flex-col items-center gap-4">
+                            <div className="w-12 h-12 rounded-full border-2 border-dashed border-zinc-200" />
+                            <p className="text-sm font-medium">No previous versions archived yet.</p>
+                        </div>
+                    ) : versions.map((v) => (
+                        <div key={v.id} className="group relative flex items-center justify-between p-6 bg-white border border-zinc-100 rounded-[2rem] hover:border-black hover:bg-zinc-50 transition-all duration-300 shadow-sm hover:shadow-2xl hover:-translate-y-1">
+                            <div className="flex items-center gap-6">
+                                <div className="bg-zinc-100 text-zinc-400 font-black w-14 h-14 rounded-2xl flex flex-col items-center justify-center border border-zinc-50 group-hover:bg-black group-hover:text-emerald-500 group-hover:border-zinc-800 transition-all shadow-inner">
+                                    <span className="text-[10px] opacity-50 leading-none mb-0.5">VER</span>
+                                    <span className="text-lg leading-none">V{v.version}</span>
+                                </div>
+                                <div>
+                                    <p className="font-black text-black text-xl tracking-tight leading-none group-hover:text-emerald-600 transition-colors">
+                                        {v.name}
+                                    </p>
+                                    <div className="flex items-center gap-4 mt-2">
+                                        <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-black uppercase tracking-widest">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {new Date(v.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                        <div className="w-1 h-1 bg-zinc-200 rounded-full" />
+                                        <div className="flex items-center gap-2 text-[10px] text-emerald-600/60 font-black uppercase tracking-widest">
+                                            <Layout className="w-3.5 h-3.5" />
+                                            {(typeof v.steps === 'string' ? JSON.parse(v.steps || "[]") : (v.steps || [])).length} Nodes
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <Button 
+                                onClick={() => onRollback(v.version)}
+                                disabled={rollbackLoading}
+                                className="h-12 px-8 rounded-2xl bg-black hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[10px] gap-3 border border-black transition-all hover:scale-105 active:scale-95 shadow-lg opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0"
+                            >
+                                <RotateCcw className="w-4 h-4" /> Activate
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+                
+                <div className="p-10 border-t border-zinc-50 bg-zinc-50/50 flex justify-center italic text-xs text-zinc-400">
+                    Activating a previous version will switch the live logic to that snapshot.
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import workflowRoutes from "./routes/workflow.route.js";
 import stepRoutes from "./routes/step.route.js";
 import ruleRoutes from "./routes/rule.route.js";
 import executionRoutes from "./routes/execution.route.js";
+import adminRoutes from "./routes/admin.route.js";
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ app.use("/api/workflows", workflowRoutes);
 app.use("/api", stepRoutes);
 app.use("/api", ruleRoutes);
 app.use("/api", executionRoutes);
+app.use("/api/admin", adminRoutes);
 
 pool
   .connect()
