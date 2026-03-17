@@ -41,7 +41,6 @@ This is a powerful, full-stack workflow automation platform designed to streamli
 - **Database**: [PostgreSQL (Neon DB)](https://neon.tech/)
 - **Security**: [Arcjet](https://arcjet.com/) (Rate limiting, Bot protection)
 - **Email**: Nodemailer
-- **Caching**: Redis
 
 ---
 
@@ -69,7 +68,6 @@ workflow-engine/
 ### Prerequisites
 - Node.js (v18+)
 - PostgreSQL (Neon DB recommended)
-- Redis
 
 ### Installation
 
