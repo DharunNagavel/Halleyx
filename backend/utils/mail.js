@@ -13,9 +13,40 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const renderDataToHtml = (data) => {
+  if (!data || typeof data !== "object") return "";
+  const entries = Object.entries(data).filter(([key]) => !['id', 'workflow_id', 'execution_id', 'approval_status'].includes(key));
+  
+  if (entries.length === 0) return '<div style="color: #52525b; font-style: italic; font-size: 12px; text-align: center; padding: 20px;">No contextual data available</div>';
+
+  return entries.map(([key, value]) => {
+    const label = key.replace(/_/g, ' ').toUpperCase();
+    let displayValue = value;
+    
+    if (typeof value === 'object' && value !== null) {
+      displayValue = `<pre style="margin: 0; font-size: 11px; color: #a1a1aa; background: #000; padding: 12px; border-radius: 8px; border: 1px solid #18181b; overflow-x: auto;">${JSON.stringify(value, null, 2)}</pre>`;
+    } else if (typeof value === 'boolean') {
+      displayValue = value 
+        ? '<span style="color: #10b981; font-weight: 900;">TRUE</span>' 
+        : '<span style="color: #ef4444; font-weight: 900;">FALSE</span>';
+    } else if (value === null || value === undefined) {
+      displayValue = '<span style="color: #52525b; font-style: italic;">NULL</span>';
+    } else {
+      displayValue = `<span style="color: #ffffff; font-weight: 600;">${value}</span>`;
+    }
+
+    return `
+      <div style="margin-bottom: 12px; background: #09090b; border: 1px solid #18181b; border-radius: 12px; padding: 16px;">
+        <div style="font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #52525b; margin-bottom: 6px;">${label}</div>
+        <div style="font-size: 13px; line-height: 1.4;">${displayValue}</div>
+      </div>
+    `;
+  }).join('');
+};
+
 export const sendNotificationEmail = async (to, workflowName, status, data) => {
   const mailOptions = {
-    from: `"Workflow engine" <dharunnagavel1226@gmail.com>`,
+    from: `"Halleyx Engine" <dharunnagavel1226@gmail.com>`,
     to: to,
     subject: `Workflow Update: ${workflowName}`,
     html: `
@@ -24,28 +55,25 @@ export const sendNotificationEmail = async (to, workflowName, status, data) => {
       <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
           <style>
               body {
                   margin: 0;
                   padding: 0;
                   background-color: #000000;
-                  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                   color: #ffffff;
               }
               .container {
                   max-width: 600px;
                   margin: 40px auto;
-                  padding: 48px;
+                  padding: 40px;
                   background-color: #000000;
                   border: 1px solid #27272a;
-                  border-radius: 40px;
+                  border-radius: 32px;
               }
               .status-badge {
                   display: inline-block;
-                  padding: 6px 16px;
+                  padding: 6px 14px;
                   background-color: #10b981;
                   color: #000000;
                   border-radius: 100px;
@@ -56,9 +84,9 @@ export const sendNotificationEmail = async (to, workflowName, status, data) => {
                   margin-bottom: 24px;
               }
               .title {
-                  font-size: 24px;
+                  font-size: 28px;
                   font-weight: 900;
-                  letter-spacing: -0.05em;
+                  letter-spacing: -0.04em;
                   text-transform: uppercase;
                   margin: 0 0 8px 0;
                   color: #ffffff;
@@ -71,24 +99,11 @@ export const sendNotificationEmail = async (to, workflowName, status, data) => {
                   color: #71717a;
                   margin-bottom: 32px;
               }
-              .data-card {
-                  background-color: #09090b;
-                  border: 1px solid #18181b;
-                  border-radius: 16px;
-                  padding: 20px;
-                  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-              }
-              .data-content {
-                  font-size: 12px;
-                  color: #a1a1aa;
-                  margin: 0;
-                  white-space: pre-wrap;
-              }
               .footer {
                   margin-top: 40px;
                   padding-top: 24px;
                   border-top: 1px solid #18181b;
-                  font-size: 12px;
+                  font-size: 11px;
                   color: #52525b;
                   text-align: center;
               }
@@ -100,8 +115,9 @@ export const sendNotificationEmail = async (to, workflowName, status, data) => {
               <h1 class="title">Workflow <span style="color: #10b981;">Progress</span></h1>
               <p class="subtitle">${workflowName}</p>
               
-              <div class="data-card">
-                  <pre class="data-content">${JSON.stringify(data, null, 2)}</pre>
+              <div style="margin-top: 32px;">
+                  <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #52525b; margin-bottom: 16px;">Execution Details</div>
+                  ${renderDataToHtml(data)}
               </div>
               
               <div class="footer">
@@ -128,7 +144,7 @@ export const sendApprovalEmail = async (to, executionId, workflowName, data) => 
   const rejectLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/approve/${executionId}?action=reject`;
 
   const mailOptions = {
-    from: `"Workflow engine" <${'dharunnagavel1226@gmail.com'}>`,
+    from: `"Halleyx Engine" <dharunnagavel1226@gmail.com>`,
     to: to,
     subject: `Approval Required: ${workflowName}`,
     html: `
@@ -137,47 +153,33 @@ export const sendApprovalEmail = async (to, executionId, workflowName, data) => 
       <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
           <style>
               body {
                   margin: 0;
                   padding: 0;
                   background-color: #000000;
-                  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                   color: #ffffff;
               }
               .container {
                   max-width: 600px;
                   margin: 40px auto;
-                  padding: 48px;
+                  padding: 40px;
                   background-color: #000000;
                   border: 1px solid #27272a;
-                  border-radius: 40px;
-                  box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.05);
-              }
-              .logo-box {
-                  width: 64px;
-                  height: 64px;
-                  background-color: #000000;
-                  border: 1px solid #27272a;
-                  border-radius: 20px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin-bottom: 32px;
+                  border-radius: 32px;
               }
               .logo {
                   width: 32px;
                   height: 32px;
                   background-color: #10b981;
                   border-radius: 8px;
+                  margin-bottom: 24px;
               }
               .title {
-                  font-size: 24px;
+                  font-size: 28px;
                   font-weight: 900;
-                  letter-spacing: -0.05em;
+                  letter-spacing: -0.04em;
                   text-transform: uppercase;
                   margin: 0 0 8px 0;
                   color: #ffffff;
@@ -196,33 +198,11 @@ export const sendApprovalEmail = async (to, executionId, workflowName, data) => 
                   margin-bottom: 32px;
                   line-height: 1.6;
               }
-              .data-card {
-                  background-color: #09090b;
-                  border: 1px solid #18181b;
-                  border-radius: 16px;
-                  padding: 20px;
-                  margin-bottom: 32px;
-                  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-              }
-              .data-title {
-                  font-size: 10px;
-                  font-weight: 900;
-                  text-transform: uppercase;
-                  letter-spacing: 0.1em;
-                  color: #52525b;
-                  margin-bottom: 12px;
-              }
-              .data-content {
-                  font-size: 12px;
-                  color: #a1a1aa;
-                  margin: 0;
-                  white-space: pre-wrap;
-              }
               .actions {
                   display: table;
                   width: 100%;
                   border-spacing: 12px 0;
-                  margin: 0 -12px;
+                  margin: 32px -12px 0 -12px;
               }
               .btn-cell {
                   display: table-cell;
@@ -239,7 +219,6 @@ export const sendApprovalEmail = async (to, executionId, workflowName, data) => 
                   text-transform: uppercase;
                   letter-spacing: 0.2em;
                   border-radius: 16px;
-                  transition: all 0.2s;
               }
               .btn-approve {
                   background-color: #10b981;
@@ -254,47 +233,26 @@ export const sendApprovalEmail = async (to, executionId, workflowName, data) => 
                   margin-top: 40px;
                   padding-top: 24px;
                   border-top: 1px solid #18181b;
-                  font-size: 12px;
+                  font-size: 11px;
                   color: #52525b;
                   text-align: center;
               }
           </style>
-          
-          <!-- Gmail Action Schema -->
-          <script type="application/ld+json">
-          {
-            "@context": "http://schema.org",
-            "@type": "WorkflowAction",
-            "name": "Approve Workflow",
-            "actionStatus": "PotentialActionStatus",
-            "object": {
-              "@type": "Action",
-              "name": "Decision requested for ${workflowName}"
-            },
-            "target": {
-              "@type": "HttpActionHandler",
-              "url": "${approvalLink}",
-              "method": "GET"
-            }
-          }
-          </script>
       </head>
       <body>
           <div class="container">
-              <div class="logo-box">
-                  <div class="logo"></div>
-              </div>
+              <div class="logo"></div>
               
               <h1 class="title">Approval <span style="color: #10b981;">Required</span></h1>
               <p class="subtitle">${workflowName}</p>
               
               <p class="description">
-                  A workflow execution is waiting for your decision. Please review the details below and proceed with the appropriate action.
+                  A workflow execution is waiting for your decision. Please review the context below and proceed with the appropriate action.
               </p>
               
-              <div class="data-card">
-                  <div class="data-title">Execution Context</div>
-                  <pre class="data-content">${JSON.stringify(data, null, 2)}</pre>
+              <div style="margin-top: 32px;">
+                  <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #52525b; margin-bottom: 16px;">Execution Context</div>
+                  ${renderDataToHtml(data)}
               </div>
               
               <div class="actions">
