@@ -8,6 +8,7 @@ import stepRoutes from "./routes/step.route.js";
 import ruleRoutes from "./routes/rule.route.js";
 import executionRoutes from "./routes/execution.route.js";
 import adminRoutes from "./routes/admin.route.js";
+import client from "./redis.js";
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ app.use("/api", ruleRoutes);
 app.use("/api", executionRoutes);
 app.use("/api/admin", adminRoutes);
 
+client.connect();
 pool
   .connect()
   .then(() => {

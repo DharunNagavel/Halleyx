@@ -1,7 +1,20 @@
 import pool from "../db.js";
+import client from "../redis.js";
 
 export const getAdminStats = async (req, res) => {
   try {
+    const cacheKey = "admin:stats";
+    
+    // Attempt to get from Redis cache
+    try {
+      const cachedStats = await client.get(cacheKey);
+      if (cachedStats) {
+        return res.json(JSON.parse(cachedStats));
+      }
+    } catch (redisErr) {
+      console.error("Redis Get Error:", redisErr);
+    }
+
     const workflowCount = await pool.query("SELECT COUNT(*) FROM workflows");
     const executionStats = await pool.query("SELECT status, COUNT(*) FROM executions GROUP BY status");
     const recentLogs = await pool.query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 10");
@@ -13,12 +26,21 @@ export const getAdminStats = async (req, res) => {
       ORDER BY day ASC
     `);
 
-    res.json({
+    const stats = {
       totalWorkflows: parseInt(workflowCount.rows[0].count),
       executionStats: executionStats.rows,
       recentLogs: recentLogs.rows,
       executionsOverTime: executionsOverTime.rows
-    });
+    };
+
+    // Store in Redis cache with 5 minute expiration (300 seconds)
+    try {
+      await client.setEx(cacheKey, 300, JSON.stringify(stats));
+    } catch (redisErr) {
+      console.error("Redis Set Error:", redisErr);
+    }
+
+    res.json(stats);
   } catch (err) {
     console.error("Admin Stats Error:", err);
     res.status(500).json({ message: "Failed to fetch admin stats", error: err.message });

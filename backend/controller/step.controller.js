@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import client from "../redis.js";
 import { v4 as uuidv4 } from "uuid";
 import aj from "../arcjet.js";
 import { createRevision, logAudit } from "../utils/versionUtility.js";
@@ -30,6 +31,10 @@ export const createStep = async (req, res) =>
     }
 
     await logAudit("create_step", "step", id, { name, workflow_id });
+    
+    // Invalidate caches
+    await client.del(`workflows:id:${workflow_id}`);
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ message: "Failed to create step", error: err.message });
@@ -71,6 +76,11 @@ export const updateStep = async (req, res) => {
       [name, step_type, order, metadata || {}, approver_email, id],
     );
 
+    // Invalidate caches
+    const workflow_id = step.rows[0].workflow_id;
+    await client.del(`step:${id}`);
+    await client.del(`workflows:id:${workflow_id}`);
+
     await logAudit("update_step", "step", id, { name });
     res.json(result.rows[0]);
   } catch (err) {
@@ -92,8 +102,13 @@ export const deleteStep = async (req, res) =>
     // Get workflow_id to snapshot
     const step = await pool.query("SELECT workflow_id, name FROM steps WHERE id=$1", [id]);
     if (step.rows.length > 0) {
-        await createRevision(step.rows[0].workflow_id);
+        const workflow_id = step.rows[0].workflow_id;
+        await createRevision(workflow_id);
         await logAudit("delete_step", "step", id, { name: step.rows[0].name });
+        
+        // Invalidate caches
+        await client.del(`step:${id}`);
+        await client.del(`workflows:id:${workflow_id}`);
     }
 
     await pool.query("DELETE FROM steps WHERE id=$1", [id]);

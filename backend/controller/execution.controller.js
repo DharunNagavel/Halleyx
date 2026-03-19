@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import client from "../redis.js";
 import { v4 as uuidv4 } from "uuid";
 import { sendApprovalEmail, sendNotificationEmail } from "../utils/mail.js";
 import aj from "../arcjet.js";
@@ -10,16 +11,33 @@ const runWorkflow = async (res, executionId, workflow, currentStepId, data, logs
     while (currentStepId) {
       console.log(`[${executionId}] Executing step: ${currentStepId}`);
       
-      const stepResult = await pool.query(
-        "SELECT * FROM steps WHERE id=$1",
-        [currentStepId]
-      );
-
-      if (stepResult.rows.length === 0) {
-        throw new Error("Step not found");
+      let step;
+      const stepCacheKey = `step:${currentStepId}`;
+      
+      try {
+        const cachedStep = await client.get(stepCacheKey);
+        if (cachedStep) {
+          step = JSON.parse(cachedStep);
+        }
+      } catch (err) {
+        console.error("Step cache error:", err);
       }
 
-      const step = stepResult.rows[0];
+      if (!step) {
+        const stepResult = await pool.query(
+          "SELECT * FROM steps WHERE id=$1",
+          [currentStepId]
+        );
+
+        if (stepResult.rows.length === 0) {
+          throw new Error("Step not found");
+        }
+        step = stepResult.rows[0];
+        
+        try {
+          await client.setEx(stepCacheKey, 3600, JSON.stringify(step));
+        } catch (err) {}
+      }
 
       // Create a new log entry for THIS attempt of the step
       const stepLog = {
@@ -88,12 +106,29 @@ const runWorkflow = async (res, executionId, workflow, currentStepId, data, logs
       }
 
       // Evaluate rules
-      const ruleResult = await pool.query(
-        "SELECT * FROM rules WHERE step_id=$1 ORDER BY priority ASC",
-        [step.id]
-      );
+      let rules;
+      const rulesCacheKey = `rules:step:${step.id}`;
 
-      const rules = ruleResult.rows;
+      try {
+        const cachedRules = await client.get(rulesCacheKey);
+        if (cachedRules) {
+          rules = JSON.parse(cachedRules);
+        }
+      } catch (err) {
+        console.error("Rules cache error:", err);
+      }
+
+      if (!rules) {
+        const ruleResult = await pool.query(
+          "SELECT * FROM rules WHERE step_id=$1 ORDER BY priority ASC",
+          [step.id]
+        );
+        rules = ruleResult.rows;
+
+        try {
+          await client.setEx(rulesCacheKey, 3600, JSON.stringify(rules));
+        } catch (err) {}
+      }
       let nextStep = null;
       let matched = false;
       let defaultStep = null;

@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import client from "../redis.js";
 import { v4 as uuidv4 } from "uuid";
 import aj from "../arcjet.js";
 import { createRevision, logAudit } from "../utils/versionUtility.js";
@@ -20,6 +21,9 @@ export const createWorkflow = async (req, res) =>
       [id, name, finalSchema],
     );
     
+    // Invalidate workflows cache
+    await client.del("workflows:all");
+
     // Audit Log
     await pool.query(
       "INSERT INTO audit_logs (action, target_type, target_id, details) VALUES ($1, $2, $3, $4)",
@@ -40,8 +44,21 @@ export const getWorkflows = async (req, res) =>
         message: "Request blocked by Arcjet",
       });
     }
-  const result = await pool.query("SELECT * FROM workflows ORDER BY created_at DESC",);
-  res.json(result.rows);
+  
+  try {
+    const cacheKey = "workflows:all";
+    const cached = await client.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
+    const result = await pool.query("SELECT * FROM workflows ORDER BY created_at DESC",);
+    
+    await client.setEx(cacheKey, 3600, JSON.stringify(result.rows)); // Cache for 1 hour
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Redis error:", err);
+    const result = await pool.query("SELECT * FROM workflows ORDER BY created_at DESC",);
+    res.json(result.rows);
+  }
 };
 
 export const getWorkflowById = async (req, res) => 
@@ -53,20 +70,35 @@ export const getWorkflowById = async (req, res) =>
       });
     }
   const { id } = req.params;
-  const workflowResult = await pool.query("SELECT * FROM workflows WHERE id=$1", [id]);
-  const workflow = workflowResult.rows[0];
-  const steps = await pool.query("SELECT * FROM steps WHERE workflow_id=$1 ORDER BY \"order\" ASC", [id]);
-  
-  if (workflow && !workflow.start_step_id && steps.rows.length > 0) {
-      workflow.start_step_id = steps.rows[0].id;
-  }
+  const cacheKey = `workflows:id:${id}`;
 
-  const rules = await pool.query(`SELECT r.* FROM rules r JOIN steps s ON r.step_id=s.id WHERE s.workflow_id=$1`,[id],);
-  res.json({
-    workflow: workflow,
-    steps: steps.rows,
-    rules: rules.rows,
-  });
+  try {
+    const cached = await client.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
+    const workflowResult = await pool.query("SELECT * FROM workflows WHERE id=$1", [id]);
+    const workflow = workflowResult.rows[0];
+    const steps = await pool.query("SELECT * FROM steps WHERE workflow_id=$1 ORDER BY \"order\" ASC", [id]);
+    
+    if (workflow && !workflow.start_step_id && steps.rows.length > 0) {
+        workflow.start_step_id = steps.rows[0].id;
+    }
+
+    const rules = await pool.query(`SELECT r.* FROM rules r JOIN steps s ON r.step_id=s.id WHERE s.workflow_id=$1`,[id],);
+    
+    const response = {
+      workflow: workflow,
+      steps: steps.rows,
+      rules: rules.rows,
+    };
+
+    await client.setEx(cacheKey, 3600, JSON.stringify(response));
+
+    res.json(response);
+  } catch (err) {
+    console.error("Workflow fetch error:", err);
+    res.status(500).json({ message: "Failed to fetch workflow" });
+  }
 };
 
 
@@ -90,6 +122,10 @@ export const updateWorkflow = async (req, res) => {
        RETURNING *`,
       [name, finalSchema, id]
     );
+
+    // Invalidate caches
+    await client.del("workflows:all");
+    await client.del(`workflows:id:${id}`);
 
     // Audit Log
     await logAudit("update", "workflow", id, { version: nextSequentialVersion, name });
@@ -162,6 +198,10 @@ export const rollbackWorkflow = async (req, res) => {
 
     await pool.query("COMMIT");
 
+    // Invalidate caches
+    await client.del("workflows:all");
+    await client.del(`workflows:id:${id}`);
+
     // Audit Log
     await pool.query(
       "INSERT INTO audit_logs (action, target_type, target_id, details) VALUES ($1, $2, $3, $4)",
@@ -202,6 +242,10 @@ export const deleteWorkflow = async (req, res) => {
 
     // 4. Finally, delete the workflow
     await pool.query("DELETE FROM workflows WHERE id = $1", [id]);
+
+    // Invalidate caches
+    await client.del("workflows:all");
+    await client.del(`workflows:id:${id}`);
 
     // Audit Log
     await pool.query(
